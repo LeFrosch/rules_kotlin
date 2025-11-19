@@ -831,13 +831,13 @@ def _kt_jvm_produce_output_jar_actions(
                 jars = [struct(
                     class_jar = outputs.jar,
                     ijar = compile_jar,
-                    source_jars = java_info.source_jars,
+                    source_jars = [jars.source_jar for jars in java_info.java_outputs],
                 )],
             ),
             transitive_compile_time_jars = java_info.transitive_compile_time_jars,
             transitive_source_jars = java_info.transitive_source_jars,
             annotation_processing = annotation_processing,
-            # additional_generated_source_jars = generated_src_jars, ?
+            additional_generated_source_jars = [jars.generated_source_jar for jars in java_info.java_outputs],
             all_output_jars = [jars.class_jar for jars in java_info.java_outputs],
         ),
     )
@@ -1111,40 +1111,18 @@ def _run_kt_java_builder_actions(
         java_toolchain = java_toolchain,
     )
 
-    annotation_processing = None
-    if annotation_processors or ksp_annotation_processors:
-        is_ksp = (ksp_annotation_processors != None)
-        processor = ksp_annotation_processors if is_ksp else annotation_processors
-        gen_jar = ksp_generated_src_jar if is_ksp else ap_generated_src_jar
-        outputs_list = [java_info.outputs for java_info in java_infos]
-        annotation_processing = _create_annotation_processing(
-            annotation_processors = processor,
-            ap_class_jar = [jars.class_jar for outputs in outputs_list for jars in outputs.jars][0],
-            ap_source_jar = gen_jar,
+    generated_source_jar = None
+    generated_class_jar = None
+    if generated_kapt_src_jars or generated_ksp_src_jars:
+        generated_source_jar = java_common.pack_sources(
+            ctx.actions,
+            output_source_jar = ctx.actions.declare_file(ctx.label.name + "-gensrc.jar"),
+            source_jars = generated_kapt_src_jars + generated_ksp_src_jars,
+            java_toolchain = java_toolchain,
         )
 
-    generated_source_jar = java_common.pack_sources(
-        ctx.actions,
-        output_source_jar = ctx.actions.declare_file(ctx.label.name + "-gensrc.jar"),
-        source_jars = generated_kapt_src_jars + generated_ksp_src_jars,
-        java_toolchain = java_toolchain,
-    ) if generated_kapt_src_jars + generated_ksp_src_jars else None
-
-    generated_class_jar = None
-    if annotation_processing:
-        generated_class_jar = annotation_processing.class_jar
-    # generated_source_jar = None
-    # generated_class_jar = None
-    # if generated_kapt_src_jars or generated_ksp_src_jars:
-    #     generated_source_jar = java_common.pack_sources(
-    #         ctx.actions,
-    #         output_source_jar = ctx.actions.declare_file(base_name + "-gensrc.jar"),
-    #         source_jars = generated_kapt_src_jars + generated_ksp_src_jars,
-    #         java_toolchain = java_toolchain,
-    #     )
-
-    #     # this seems a bity hacky
-    #     generated_class_jar = [output.class_jar for info in java_infos for output in info.java_outputs][0]
+        # this seems a bity hacky
+        generated_class_jar = [output.class_jar for info in java_infos for output in info.java_outputs][0]
 
     return JavaInfo(
         output_jar = output,

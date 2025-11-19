@@ -95,7 +95,7 @@ def _compile(
 
     return _compile_util.run_compile_action(
         ctx,
-        rule_kind = "kt_jvm_compile",
+        rule_kind = "kt_jvm_library",
         output = output,
         output_source_jar = output_source_jar or ctx.actions.declare_file(base_name + "-src.jar"),
         output_compile_jar = output_compile_jar or ctx.actions.declare_file(base_name + ".abi.jar"),
@@ -120,6 +120,11 @@ def _compile(
         jdeps = jdeps or ctx.actions.declare_file(base_name + ".jdeps"),
     )
 
+def _find_kotlin_toolchain(ctx):
+    return ctx.toolchains[_TOOLCHAIN_TYPE]
+
 kt_jvm_common = struct(
     compile = _compile,
+    find_kotlin_toolchain = _find_kotlin_toolchain,
+    TOOLCHAIN_TYPE = _TOOLCHAIN_TYPE,
 )
